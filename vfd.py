@@ -6,8 +6,13 @@ import requests
 from struct import *
 import time
 
+import logging
+import logging.handlers
+import sys
+
 # your WU api key
 from weather_underground_api import *
+WU_API="https://api.weather.com/v2/pws/observations/current?stationId="+STATION_ID+"&format=json&units=e&apiKey="+API_KEY
 
 top="/dev/ttyS5"
 middle="/dev/ttyS7"
@@ -18,7 +23,30 @@ displaydelay=5; # how long before each messages is displayed
 DISPLAY_UPDATE_DELAY=300
 DISPLAY_INIT_DELAY=1
 
-WU_API="https://api.weather.com/v2/pws/observations/current?stationId="+STATION_ID+"&format=json&units=e&apiKey="+API_KEY
+
+# general log level is INFO .  DEBUG here shows urllib3 debug lines
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s') # write to stdout
+
+
+my_logger = logging.getLogger('VFDLogger')
+# our app log level is DEBUG
+my_logger.setLevel(logging.DEBUG)
+
+# send to syslog
+handler = logging.handlers.SysLogHandler(address = '/dev/log')
+# our app formatting
+formatter = logging.Formatter('%(levelname)s %(name)s %(module)s.%(funcName)s: %(message)s') # write to syslog
+handler.setFormatter(formatter)
+my_logger.addHandler(handler)
+
+def my_err_handler(exctype, value, tb):
+    my_logger.exception("Uncaught exception: Type:{0} Value:{1} Traceback:{2}".format(str(exctype), str(value), str(tb)) )
+
+# Install exception handler
+sys.excepthook = my_err_handler
+
+# our API string
+my_logger.debug(WU_API)
 
 ############################### VFD ###############################
 # Global serial port to send commands to
@@ -113,8 +141,14 @@ def my_init_display():
 
         #print(ser_current.name)         # check which port was really used
         
+        my_logger.info(ser_current.name)
+
         serial_port = ser_current
-        ports.append(ser_current)
+
+        if not ser_current in ports:
+            ports.append(ser_current)
+        else:
+            my_logger.debug(ser_current+" in ports list already")
 
         init_display()
         clear_display()
@@ -132,9 +166,17 @@ def get_and_display():
     global serial_port 
 
     r = requests.get(WU_API)
-    if (r.status_code != 200):
-        my_init_display
-        write_text("API Error: "+r.status_code)    
+    if (r.status_code == 204):
+        err="No data from WU"
+        my_logger.critical(err)
+        my_init_display()
+        write_text(err)    
+    elif (r.status_code != 200):
+        err="API Error: "+str(r.status_code)
+        my_logger.critical(err)
+        my_init_display()
+        write_text(err)    
+
     else:
         blank_display() # remove Running...
 
@@ -191,6 +233,7 @@ def get_and_display():
 # main
 #
 
+my_logger.debug('Starting...')
 #
 #  init
 #
@@ -201,16 +244,23 @@ write_text("Running...")
 #
 # LOOP HERE
 #
+sleepy_time=False
 while True:
     tm = time.localtime()
-    current_hour = time.strftime("%H", tm)
+    current_hour = int(time.strftime("%H", tm))
 
-    if (current_hour>=6 or current_hour<=11):
+    #my_logger.debug(current_hour)
+
+    if (current_hour>=6 and current_hour<=23):
         # 6am-10.59pm display else turn off 
         get_and_display()
-    else:    
-        my_init_display()
-    
+        sleepy_time=False
+    else:
+        if not sleepy_time:
+            my_logger.info("Sleepy Time")
+            my_init_display()
+            sleepy_time=True
+
     time.sleep(DISPLAY_UPDATE_DELAY)
 
 
