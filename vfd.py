@@ -22,11 +22,14 @@ displaydelay=5; # how long before each messages is displayed
 
 DISPLAY_UPDATE_DELAY=300
 DISPLAY_INIT_DELAY=1
+MAX_RETRY_COUNT=30 # numbe rof times to attempt to connect to API
 
-
+#
+# Logging setup
+#
+# https://stackoverflow.com/questions/6234405/logging-uncaught-exceptions-in-python
 # general log level is INFO .  DEBUG here shows urllib3 debug lines
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s') # write to stdout
-
 
 my_logger = logging.getLogger('VFDLogger')
 # our app log level is DEBUG
@@ -41,12 +44,21 @@ my_logger.addHandler(handler)
 
 def my_err_handler(exctype, value, tb):
     my_logger.exception("Uncaught exception: Type:{0} Value:{1} Traceback:{2}".format(str(exctype), str(value), str(tb)) )
+    # the below may or may not work
+    if ports.len() > 0:
+        my_init_display()
+        write_text(str(exctype))    
 
 # Install exception handler
 sys.excepthook = my_err_handler
+#
+# End Logging setup
+#
 
 # our API string
 my_logger.debug(WU_API)
+
+
 
 ############################### VFD ###############################
 # Global serial port to send commands to
@@ -165,7 +177,27 @@ def get_and_display():
     #
     global serial_port 
 
-    r = requests.get(WU_API)
+    not_found=True
+    retries=0
+    while retries<MAX_RETRY_COUNT and not_found:
+        try:
+            r = requests.get(WU_API,timeout=3)
+            r.raise_for_status()
+            not_found=False
+        except requests.exceptions.HTTPError as errh:
+            my_logger.warning ("Http Error:",errh)
+        except requests.exceptions.ConnectionError as errc:
+            my_logger.warning ("Error Connecting:",errc)
+        except requests.exceptions.Timeout as errt:
+            my_logger.warning ("Timeout Error:",errt)
+        except requests.exceptions.RequestException as err:
+            my_logger.critical ("Oops: Something Else",err)
+
+        if not_found:
+            retries += 1
+            time.sleep(2)
+    # end loop 
+
     if (r.status_code == 204):
         err="No data from WU"
         my_logger.critical(err)
@@ -250,8 +282,9 @@ while True:
     current_hour = int(time.strftime("%H", tm))
 
     #my_logger.debug(current_hour)
+    #my_logger.debug(sleepy_time)
 
-    if (current_hour>=6 and current_hour<=23):
+    if (current_hour>=6 and current_hour<23):
         # 6am-10.59pm display else turn off 
         get_and_display()
         sleepy_time=False
