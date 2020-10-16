@@ -10,6 +10,8 @@ import logging
 import logging.handlers
 import sys
 
+import datetime
+
 # your WU api key
 from weather_underground_api import *
 WU_API="https://api.weather.com/v2/pws/observations/current?stationId="+STATION_ID+"&format=json&units=e&apiKey="+API_KEY
@@ -260,6 +262,14 @@ def get_and_display():
         cursor_bottom_line()
         write_text("Last Update : "+current_time)
 
+# https://stackoverflow.com/a/10748024/7396553
+def time_in_range(start, end, x):
+    """Return true if x is in the range [start, end]"""
+    if start <= end:
+        return start <= x <= end
+    else:
+        return start <= x or x <= end
+
 ###################################################################
 #
 # main
@@ -278,13 +288,16 @@ write_text("Running...")
 #
 sleepy_time=False
 while True:
-    tm = time.localtime()
-    current_hour = int(time.strftime("%H", tm))
+    #tm = time.localtime()
+    #current_hour = int(time.strftime("%H", tm))
 
     #my_logger.debug(current_hour)
     #my_logger.debug(sleepy_time)
 
-    if (current_hour>=6 and current_hour<23):
+    # if (current_hour>=6 and current_hour<23):
+    now = datetime.datetime.now().time()
+    display_in_time_range = time_in_range(datetime.time(6, 15, 0), datetime.time(22, 30, 0), now)
+    if (display_in_time_range):
         # 6am-10.59pm display else turn off 
         get_and_display()
         sleepy_time=False
