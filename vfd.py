@@ -223,6 +223,7 @@ def get_and_display():
         wind_chill = jj['windChill']
         heat_index = jj['heatIndex']
         humidity   = _json['observations'][0]['humidity']
+        dewpt = jj['dewpt']
 
         feels_like = temperature
         if wind_chill < temperature:
@@ -233,7 +234,7 @@ def get_and_display():
 
         t = (temperature - 32) * 5/9
         fl = (feels_like - 32) * 5/9
-
+        dp = (dewpt - 32) * 5/9
 
         tm = time.localtime()
         current_time = time.strftime("%H:%M", tm)
@@ -258,9 +259,10 @@ def get_and_display():
 
         serial_port = ports[2] # bottom
         blank_display()
-        # write_text("DNS Queries : "+str(abc))
+        cursor_top_line()
+        write_text("Dew point  : "+str(dp)+" C")
         cursor_bottom_line()
-        write_text("Last Update : "+current_time)
+        write_text("Last Update: "+current_time)
 
 # https://stackoverflow.com/a/10748024/7396553
 def time_in_range(start, end, x):
