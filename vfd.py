@@ -253,14 +253,14 @@ def get_and_display():
         serial_port = ports[1] # middle
         blank_display()
         cursor_top_line()
-        write_text("Wind speed : "+str(wind_speed)+" mph")
+        write_text("Dew point  : "+str(dp)+" C")
         cursor_bottom_line()
         write_text("Humidity   : "+str(humidity)+" %")
 
         serial_port = ports[2] # bottom
         blank_display()
         cursor_top_line()
-        write_text("Dew point  : "+str(dp)+" C")
+        write_text("Wind speed : "+str(wind_speed)+" mph")
         cursor_bottom_line()
         write_text("Last Update: "+current_time)
 
