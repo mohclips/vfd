@@ -40,7 +40,7 @@ my_logger.setLevel(logging.DEBUG)
 # send to syslog
 handler = logging.handlers.SysLogHandler(address = '/dev/log')
 # our app formatting
-formatter = logging.Formatter('%(levelname)s %(name)s %(module)s.%(funcName)s: %(message)s') # write to syslog
+formatter = logging.Formatter('%(levelname)s %(name)s %(module)s.%(funcName)s: line:%(lineno)s %(message)s') # write to syslog
 handler.setFormatter(formatter)
 my_logger.addHandler(handler)
 
@@ -144,8 +144,18 @@ def cursor_bottom_line():
     cursor_to_position(0x14)
 
 ############################### VFD ###############################
+def init_and_clear():
+
+    init_display()
+    clear_display()
+    disable_screensaver()
+    blank_display()
 
 def my_init_display():
+    """
+    Needs to be only run once, or we run out of file descriptors overtime
+    """
+
     global serial_port
     global ports
 
@@ -164,11 +174,7 @@ def my_init_display():
         else:
             my_logger.debug(ser_current+" in ports list already")
 
-        init_display()
-        clear_display()
-        disable_screensaver()
-        
-        blank_display()
+        init_and_clear()
 
         #ser_current.close() 
 
@@ -203,12 +209,16 @@ def get_and_display():
     if (r.status_code == 204):
         err="No data from WU"
         my_logger.critical(err)
-        my_init_display()
-        write_text(err)    
+        init_and_clear()
+        write_text(err)
+        cursor_bottom_line()
+        tm = time.localtime()
+        current_time = time.strftime("%H:%M", tm)
+        write_text(current_time)    
     elif (r.status_code != 200):
         err="API Error: "+str(r.status_code)
         my_logger.critical(err)
-        my_init_display()
+        init_and_clear()
         write_text(err)    
 
     else:
@@ -281,7 +291,7 @@ my_logger.debug('Starting...')
 #
 #  init
 #
-my_init_display()       
+my_init_display()   # only run once    
 
 write_text("Running...")
 
@@ -298,7 +308,7 @@ while True:
 
     # if (current_hour>=6 and current_hour<23):
     now = datetime.datetime.now().time()
-    display_in_time_range = time_in_range(datetime.time(6, 15, 0), datetime.time(22, 30, 0), now)
+    display_in_time_range = time_in_range(datetime.time(6, 0, 0), datetime.time(22, 30, 0), now)
     if (display_in_time_range):
         # 6am-10.59pm display else turn off 
         get_and_display()
@@ -306,7 +316,7 @@ while True:
     else:
         if not sleepy_time:
             my_logger.info("Sleepy Time")
-            my_init_display()
+            init_and_clear()
             sleepy_time=True
 
     time.sleep(DISPLAY_UPDATE_DELAY)
