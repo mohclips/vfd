@@ -144,6 +144,14 @@ def cursor_bottom_line():
     cursor_to_position(0x14)
 
 ############################### VFD ###############################
+
+def clear_all():
+    global serial_port
+
+    for serial_pos in ports:
+        serial_port = serial_pos
+        init_and_clear()
+
 def init_and_clear():
 
     init_display()
@@ -206,10 +214,17 @@ def get_and_display():
             time.sleep(2)
     # end loop 
 
-    if (r.status_code == 204):
-        err="No data from WU"
+    #if not r:
+    if 'r' not in locals():
+        err = "Oops: requests not found, "+str(retries)+", "+str(not_found)
+        my_logger.critical (err)
+        clear_all()
+        write_text(err)    
+
+    elif (r.status_code == 204):
+        err="No data from WU: "+str(r.status_code)
         my_logger.critical(err)
-        init_and_clear()
+        clear_all()
         write_text(err)
         cursor_bottom_line()
         tm = time.localtime()
@@ -218,7 +233,7 @@ def get_and_display():
     elif (r.status_code != 200):
         err="API Error: "+str(r.status_code)
         my_logger.critical(err)
-        init_and_clear()
+        clear_all()
         write_text(err)    
 
     else:
@@ -316,7 +331,8 @@ while True:
     else:
         if not sleepy_time:
             my_logger.info("Sleepy Time")
-            init_and_clear()
+            #init_and_clear()
+            clear_all()
             sleepy_time=True
 
     time.sleep(DISPLAY_UPDATE_DELAY)

@@ -3,10 +3,16 @@ Description=VFD Service
 After=multi-user.target
 Conflicts=getty@tty1.service
 
+StartLimitIntervalSec=500
+StartLimitBurst=5
+
+
 [Service]
 Type=simple
 ExecStart=/usr/bin/python /home/nick/vfd/vfd.py
 StandardInput=tty-force
+Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
